@@ -89,6 +89,7 @@ if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname
 var _ip;addEventListener("beforeinstallprompt",function(e){e.preventDefault();_ip=e;var b=document.createElement("button");b.className="btn sm";b.textContent="ثبّت حدوتة كتطبيق";b.style.cssText="position:fixed;bottom:5rem;inset-inline-start:1rem;z-index:25";b.onclick=function(){_ip.prompt();b.remove()};document.body.appendChild(b)});
 </script>
 <script type="module">
+vercel/install-vercel-web-analytics-g01gba
 import { inject } from './node_modules/@vercel/analytics/dist/index.mjs';
 inject();
 </script>
