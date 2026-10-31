@@ -16,5 +16,7 @@
     "test:all": "npm test && npm run test:py && npm run e2e",
     "demo-events": "node scripts/export_demo_events.mjs 300 18 analytics/demo_events.jsonl"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "eslint": "^10.14.0"
+  }
 }
