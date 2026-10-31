@@ -1,0 +1,20 @@
+{
+  "name": "hadota",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hadota - Egyptian Arabic AI barista (static PWA + Supabase)",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test tests/engine.test.mjs tests/learning.test.mjs",
+    "test:engine": "node --test tests/engine.test.mjs",
+    "test:learning": "node --test tests/learning.test.mjs",
+    "sim": "node tests/evaluate.mjs 200 30",
+    "e2e": "python3 tests/e2e.py",
+    "analytics": "python3 -m analytics.report --demo",
+    "test:py": "python3 -m unittest discover -s analytics/tests -t .",
+    "test:all": "npm test && npm run test:py && npm run e2e",
+    "demo-events": "node scripts/export_demo_events.mjs 300 18 analytics/demo_events.jsonl"
+  },
+  "devDependencies": {}
+}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حدوتة – الباريستا الذكي</title>
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6ead8;--surf:#fffaf1;--ink:#2b1a10;--mute:#7b6554;--dark:#2a170d;--brand:#b8322a;--olive:#3f4a2b;--line:#e0cdb2;--on:#fff;box-sizing:border-box}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d120b;--surf:#2b1b11;--ink:#f6ead8;--mute:#bda78f;--line:#4a3426;--brand:#d9483e;--dark:#120a05}}
+:root[data-theme="dark"]{--bg:#1d120b;--surf:#2b1b11;--ink:#f6ead8;--mute:#bda78f;--line:#4a3426;--brand:#d9483e;--dark:#120a05}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.7 Tajawal,Tahoma,system-ui,sans-serif}
+body.big{font-size:19px}
+h1,h2,h3{font-family:"El Messiri",Tajawal,serif;margin:0 0 .4em;line-height:1.25}h1{font-size:2rem}h2{font-size:1.45rem}h3{font-size:1.1rem}
+#app{max-width:980px;height:100%;margin:0 auto;display:flex;flex-direction:column;position:relative;padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+header{display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;background:var(--dark);color:#f6ead8}
+.logo{font:700 1.6rem "El Messiri";color:#f6ead8;text-decoration:none}
+#top{display:none;gap:.2rem;margin-inline-start:auto}
+#top a,.ib{color:#f6ead8;text-decoration:none;padding:.3rem .7rem;border-radius:8px;background:none;border:0;font:inherit;cursor:pointer}
+#top a.on{background:var(--brand)}header .sp{margin-inline-start:auto}
+#view{flex:1;overflow-y:auto;padding:1rem}
+.hero{background:var(--dark);color:#f6ead8;margin:-1rem -1rem 1rem;padding:1.2rem 1rem 0;text-align:center}
+.chr{position:relative;display:block;width:min(100%,260px);margin:.5rem auto 0;transform-origin:50% 100%;animation:idle 3.2s ease-in-out infinite;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.chr img{width:100%;display:block;transform-origin:50% 100%;animation:sway 5s ease-in-out infinite;pointer-events:none}
+.chr.talk img{animation:talk .34s ease-in-out infinite}.chr.hop{animation:hop .65s ease}
+.st{position:absolute;left:21%;top:33%;width:4.5%;height:9%;border-radius:50%;background:rgba(255,255,255,.6);filter:blur(5px);opacity:0;animation:rise 2.8s ease-out infinite}.st.s2{left:24%;animation-delay:.9s}.st.s3{left:26.5%;animation-delay:1.8s}
+@keyframes idle{50%{transform:scale(1.012,.988)}}@keyframes sway{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.2deg)}}
+@keyframes talk{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px) scale(1.012,.99)}}
+@keyframes hop{30%{transform:translateY(-22px) rotate(-3deg)}60%{transform:translateY(0) rotate(2deg)}}
+@keyframes rise{0%{opacity:0;transform:translateY(0) scale(.6)}30%{opacity:.7}100%{opacity:0;transform:translateY(-130%) translateX(8px) scale(1.5)}}
+@media(prefers-reduced-motion:reduce){.chr,.chr img,.st{animation:none!important}}
+#toast{position:fixed;bottom:4.5rem;inset-inline:1rem;max-width:420px;margin:auto;background:var(--dark);color:#f6ead8;padding:.7rem 1rem;border-radius:12px;z-index:30;text-align:center}
+.tag.on{background:var(--brand);color:#fff;border-color:var(--brand)}button.tag{font:inherit;font-size:.85rem;cursor:pointer;color:inherit}
+.chat{max-height:46vh;overflow-y:auto;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:.5rem;margin:.5rem 0}.m{margin:.3rem 0;padding:.4rem .7rem;border-radius:10px;background:var(--bg)}.m.me{background:var(--brand);color:#fff}.m small{opacity:.75;display:block}
+.hero p{color:#d9c5ab}.eyebrow{color:#e8b86a;font-weight:700}
+.btn{display:block;width:100%;border:0;background:var(--brand);color:var(--on);padding:.8rem 1rem;border-radius:12px;font:700 1rem Tajawal;cursor:pointer;text-align:center;text-decoration:none;margin:.4rem 0}
+.btn.alt{background:transparent;color:var(--ink);border:1.5px solid var(--line)}.btn.sm{width:auto;display:inline-block;padding:.35rem .9rem}
+:focus-visible{outline:3px solid var(--olive);outline-offset:2px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:.9rem;margin:.6rem 0}
+.mute{color:var(--mute);font-size:.9rem}.grid{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}.grid .card{margin:0}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;text-align:center}.row3 .card{margin:0;padding:.7rem .3rem}.row3 b{font:700 1.6rem "El Messiri";display:block}
+.opt{display:block;width:100%;text-align:start;background:var(--surf);border:1.5px solid var(--line);border-radius:12px;padding:.7rem .9rem;margin:.4rem 0;font:inherit;color:inherit;cursor:pointer}
+.opt:hover{border-color:var(--brand)}.opt.on{border-color:var(--brand);background:var(--bg);box-shadow:inset 0 0 0 1px var(--brand)}
+.opts{display:grid;gap:.1rem .6rem;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:.2rem 0 1rem}.bar i{display:block;height:100%;background:var(--brand);transition:width .3s}
+.say{display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.8rem}.say img{width:54px;height:54px;object-fit:cover;object-position:top;border-radius:50%;background:var(--dark);flex:none}
+.bubble{background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:.6rem .9rem;min-height:3rem;flex:1;font-weight:600}
+input[type=text],input[type=password],textarea,input[type=range],select{width:100%;font:inherit;margin:.2rem 0}
+input[type=text],input[type=password],textarea,select{padding:.7rem;border-radius:10px;border:1.5px solid var(--line);background:var(--surf);color:var(--ink)}input[type=range]{accent-color:var(--brand)}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:.05rem .7rem;margin:.15rem;font-size:.85rem}
+dl{display:grid;grid-template-columns:auto 1fr;gap:.35rem 1rem;margin:.6rem 0}dt{color:var(--mute)}dd{margin:0;font-weight:700}
+.stars{display:flex;gap:.2rem}.star{background:none;border:0;font-size:2rem;color:var(--line);cursor:pointer}.star.on{color:#e0a526}
+.pct{display:flex;justify-content:space-between;gap:.5rem;padding:.3rem 0;border-bottom:1px dashed var(--line)}.pct b{color:var(--brand)}
+ol{padding-inline-start:1.3rem;margin:.3rem 0}.post{border-inline-start:4px solid var(--olive)}
+nav#tabs{display:flex;background:var(--surf);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+#tabs a{flex:1;text-align:center;padding:.4rem .1rem;text-decoration:none;font-size:.72rem;color:var(--mute)}#tabs a span{display:block;font-size:1.3rem;line-height:1.2}#tabs a.on{color:var(--brand);font-weight:700}
+footer{text-align:center;color:var(--mute);font-size:.85rem;padding:1.2rem 0 .5rem;border-top:1px solid var(--line);margin-top:1.2rem}
+.splash{position:fixed;inset:0;z-index:9;background:var(--dark);color:#f6ead8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1.5rem}
+.splash .btn{max-width:280px}.hide{display:none!important}
+@media(min-width:800px){#top{display:flex}nav#tabs{display:none}.hero{display:grid;grid-template-columns:1.2fr 1fr;align-items:end;text-align:start;padding:2rem 2rem 0;gap:1rem}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2a170d">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<div class="splash" id="splash">
+  <div class="chr" style="width:min(60%,250px)"><img src="assets/hadota.webp" alt="حدوتة"><i class="st s1"></i><i class="st s2"></i><i class="st s3"></i></div>
+  <h1 style="font-size:2.8rem;margin:.4rem 0 0">حدوتة</h1>
+  <p style="color:#d9c5ab;margin:.2rem 0 1rem" id="sphint"></p>
+  <button class="btn" id="enter"></button>
+</div>
+<div id="toast" class="hide" role="status"></div>
+<div id="app">
+ <header><a class="logo" href="#home">حدوتة</a><nav id="top"></nav><button class="ib sp" data-a="mute" id="mb" aria-label="الصوت">🔊</button><a class="ib" href="#profile" aria-label="حسابي" style="text-decoration:none">👤</a><a class="ib" href="#more" aria-label="المزيد" style="text-decoration:none">☰</a></header>
+ <main id="view"></main>
+ <nav id="tabs"></nav>
+</div>
+<script src="engine.js"></script>
+<script src="data.js"></script>
+<script src="backend.js"></script>
+<script src="app.js"></script>
+<script>
+if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+var _ip;addEventListener("beforeinstallprompt",function(e){e.preventDefault();_ip=e;var b=document.createElement("button");b.className="btn sm";b.textContent="ثبّت حدوتة كتطبيق";b.style.cssText="position:fixed;bottom:5rem;inset-inline-start:1rem;z-index:25";b.onclick=function(){_ip.prompt();b.remove()};document.body.appendChild(b)});
+</script>
+</body>
+</html>

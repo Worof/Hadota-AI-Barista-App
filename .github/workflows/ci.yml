@@ -1,0 +1,18 @@
+# Free CI on GitHub. Not run in the environment this was written in: check the first run.
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: npm test
+      - run: pip install -r analytics/requirements.txt playwright
+      - run: python -m unittest discover -s analytics/tests -t .
+      - run: python -m analytics.report --demo
+      - run: playwright install --with-deps chromium
+      - run: python tests/e2e.py
