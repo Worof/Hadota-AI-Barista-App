@@ -10,9 +10,6 @@ Branching questions · expert coffee rules · per-user contextual bandit · comm
 ![PWA](https://img.shields.io/badge/PWA-installable-3f4a2b) ![JS](https://img.shields.io/badge/vanilla-JavaScript-e8b86a) ![Supabase](https://img.shields.io/badge/Supabase-auth%20%2B%20Postgres%20%2B%20RLS-3ecf8e) ![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-000000) ![Tests](https://img.shields.io/badge/tests-49%20%2B%2010%20%2B%2014%20%2B%205%20%2B%2040-b8322a) ![RL](https://img.shields.io/badge/learning-LinUCB%20contextual%20bandit-b8322a)
 
 </div>
-
-> **ملخص بالمصري:** حدوتة باريستا ذكي لمدمني القهوة. بيسألك أسئلة بتتغيّر حسب إجاباتك، وبيطلّعلك خلطة بن وتحميص وطحنة وتحويجة، وكل ما تقيّم أو تكتب رأيك بيتعلم ذوقك أكتر (خوارزمية LinUCB لكل مستخدم). فيه مجتمع «قهوة الحكواتية» بترابيزات وشات، وسيرفر على Supabase، واستضافة على Vercel، ومجموعة اختبارات وتحليل بيانات تثبت إنه بيتعلم فعلاً.
-
 ---
 
 ## Contents
