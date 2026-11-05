@@ -21,7 +21,19 @@ try:
     with sync_playwright() as p:
         b = p.chromium.launch(); ctx = b.new_context(viewport={"width": 420, "height": 900}); pg = ctx.new_page()
         pg.on("pageerror", lambda e: errs.append(str(e)))
+
+        # Simulate an unconfigured backend for this E2E test only.
+        pg.route(
+            "**/config.js",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/javascript",
+                body="window.HADOTA_CONFIG = {};",
+            ),
+        )
+
         pg.goto(f"http://localhost:{PORT}/"); pg.wait_for_timeout(500)
+       
         check("splash shows the enter button", pg.query_selector("#enter") is not None)
         pg.click("#enter"); pg.wait_for_timeout(600)
         check("home renders with the animated character", pg.query_selector("#view .chr img") is not None)
