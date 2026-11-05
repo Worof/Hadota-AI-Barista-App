@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 export function loadEngine(file = path.join(here, "..", "engine.js")) {
   const src = fs.readFileSync(file, "utf8");
-  return new Function(src + "\nreturn {BEANS,DRINKS,FLAVORS,FAMILIES,ADDONS,nextQuestion,recommend,recommendBlend,featuresOf,newModel,learn,stats,trust,rewardOfRating,drinkById,many,one,roundShares,pickRoast,scoreBean,FEEDBACK_TAGS,applyFeedback,tagsFromText,REC_CFG};")();
+  return new Function(src + "\nreturn {BEANS,DRINKS,FLAVORS,FAMILIES,ADDONS,nextQuestion,recommend,recommendBlend,featuresOf,newModel,learn,stats,trust,rewardOfRating,drinkById,many,one,roundShares,pickRoast,scoreBean,FEEDBACK_TAGS,applyFeedback,tagsFromText,REC_CFG,extractRules,applyRules,ruleLines,matchOptions,normAr};")();
 }
 
 export function rng(seed) { // mulberry32

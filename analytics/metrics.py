@@ -87,9 +87,9 @@ def tag_effect(df: pd.DataFrame) -> pd.DataFrame:
     d = df[df["arm"] == "learner"]
     for uid, g in d.groupby("user_id"):
         g = g.sort_values("at")
-        ev = g[g["name"].isin(["rated", "feedback_sent"])].reset_index(drop=True)
+        ev = g[g["name"].isin(["rated", "feedback_sent", "opinion_sent"])].reset_index(drop=True)
         for i, e in ev.iterrows():
-            if e["name"] != "feedback_sent" or not isinstance(e["tags"], (list, tuple, np.ndarray)) or pd.isna(e["rating"]):
+            if e["name"] not in ("feedback_sent", "opinion_sent") or not isinstance(e["tags"], (list, tuple, np.ndarray)) or pd.isna(e["rating"]):
                 continue
             nxt = ev.iloc[i + 1:][ev.iloc[i + 1:]["name"] == "rated"].head(1)
             if nxt.empty: continue
@@ -103,8 +103,8 @@ def tag_effect(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def funnel(df: pd.DataFrame) -> pd.DataFrame:
-    steps = [("Saw a result", "result_shown"), ("Rated it", "rated"), ("Gave feedback", "feedback_sent"), ("Started an order", "order_started")]
-    return pd.DataFrame([{"step": label, "users": int(df[df["name"] == ev]["user_id"].nunique())} for label, ev in steps])
+    steps = [("Saw a result", "result_shown"), ("Rated it", "rated"), ("Gave feedback", ("feedback_sent", "opinion_sent")), ("Started an order", "order_started")]
+    return pd.DataFrame([{"step": label, "users": int(df[df["name"].isin(ev if isinstance(ev, tuple) else (ev,))]["user_id"].nunique())} for label, ev in steps])
 
 
 def retention(df: pd.DataFrame) -> pd.DataFrame:
@@ -128,7 +128,7 @@ def kpis(df: pd.DataFrame) -> dict:
     out = {"users": int(df["user_id"].nunique()), "results_shown": int(len(res)), "ratings": int(len(r)),
            "rating_rate": float(len(r) / max(1, len(res))), "mean_rating": float(r["rating"].mean()) if len(r) else float("nan"),
            "hit_rate": float((r["rating"] >= HIT).mean()) if len(r) else float("nan"),
-           "feedback_rate": float(df[df["name"] == "feedback_sent"].shape[0] / max(1, len(r))),
+           "feedback_rate": float(df[df["name"].isin(["feedback_sent", "opinion_sent"])].shape[0] / max(1, len(r))),
            "skip_rate": float(df[df["name"] == "skipped"].shape[0] / max(1, len(res))),
            "calibration_corr": calibration_corr(df)}
     for arm in ("learner", "control"):

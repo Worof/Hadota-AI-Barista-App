@@ -58,6 +58,13 @@ class Metrics(unittest.TestCase):
                 {"user_id": "a", "at": "2026-09-02T10:00:00Z", "name": "rated", "arm": "learner", "props": {"rating": 4, "rerate": 0}}]
         t = M.tag_effect(load_events(write(rows))); self.assertEqual(float(t.loc[0, "delta"]), 2.0)
 
+    def test_opinion_events_count_as_feedback(self):
+        rows = [{"user_id": "a", "at": "2026-09-01T10:00:00Z", "name": "rated", "arm": "learner", "props": {"rating": 2, "rerate": 0}},
+                {"user_id": "a", "at": "2026-09-01T10:01:00Z", "name": "opinion_sent", "arm": "learner", "props": {"tags": ["too-bitter"], "rating": 2}},
+                {"user_id": "a", "at": "2026-09-02T10:00:00Z", "name": "rated", "arm": "learner", "props": {"rating": 4, "rerate": 0}}]
+        df = load_events(write(rows)); self.assertEqual(float(M.tag_effect(df).loc[0, "delta"]), 2.0)
+        self.assertEqual(int(M.funnel(df).set_index("step").loc["Gave feedback", "users"]), 1)
+
     def test_report_builds_every_file(self):
         out = Path(tempfile.mkdtemp()); k = build(write(synth(1.0).to_dict("records")), out)
         for f in ["report.html", "kpis.json", "01_learning_curve.png", "11_segments.png"]: self.assertTrue((out / f).exists(), f)

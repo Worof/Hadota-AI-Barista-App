@@ -13,10 +13,11 @@
     "e2e": "python3 tests/e2e.py",
     "analytics": "python3 -m analytics.report --demo",
     "test:py": "python3 -m unittest discover -s analytics/tests -t .",
-    "test:all": "npm test && npm run test:py && npm run e2e",
-    "demo-events": "node scripts/export_demo_events.mjs 300 18 analytics/demo_events.jsonl"
+    "test:all": "npm test && npm run test:py && npm run e2e && npm run test:features && npm run test:voice",
+    "demo-events": "node scripts/export_demo_events.mjs 300 18 analytics/demo_events.jsonl",
+    "test:voice": "python3 tests/voice.py",
+    "voice:lines": "node scripts/voice-lines.mjs",
+    "test:features": "python3 tests/features.py"
   },
-  "devDependencies": {
-    "eslint": "^10.14.0"
-  }
+  "devDependencies": {}
 }

@@ -325,7 +325,7 @@ function roundShares(raw) {
 
 const REC_CFG = {'cand': 25, 'gain': 8, 'ramp': 3, 'alpha': 0.35, 'bonus': 0.6};
 const clamp3 = (v) => Math.max(0, Math.min(3, v));
-const ZERO_PREFS = { pa: 0, pb: 0, ps: 0, pr: 0 };
+const ZERO_PREFS = { pa: 0, pb: 0, ps: 0, pr: 0, pf: {}, caf: '' };
 let _prefs = ZERO_PREFS;
 /** What a user can tell Hadota after tasting. Each tag moves one learned taste offset (in "levels", half a level at a time). */
 const FEEDBACK_TAGS = [
@@ -438,7 +438,7 @@ function scoreBean(b, a, d, roast) {
     s += aroma.filter((f) => b.aroma.includes(f)).length * 1.2;
     if (b.roasts.includes(roast))
         s += 1.2;
-    const caf = one(a, 'caffeine');
+    const caf = one(a, 'caffeine') || _prefs.caf;
     if (caf === 'gentle')
         s += (3 - b.caffeine) * 0.8;
     if (caf === 'kick')
@@ -452,6 +452,8 @@ function scoreBean(b, a, d, roast) {
         s += 0.8;
     if (_prefs.ps)
         s += 3 - Math.abs(b.sweet - clamp3(2 + _prefs.ps)) * 0.8;
+    for (const fam of b.aroma)
+        s += 1.6 * ((_prefs.pf || {})[fam] || 0);
     return s;
 }
 function blendFrom(lead, rest, lo) {
@@ -644,3 +646,64 @@ function nextQuestion(a) {
     return { answers: cur };
 }
 
+
+/* ---- Arabic helpers: opinions become preference rules, spoken answers become choices ---- */
+const normAr = (s) => String(s || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
+const FAM_WORDS = {
+    fruity: ['فواكه', 'فاكهه', 'فاكهي', 'توت', 'حمضيات', 'ليمون', 'برتقان', 'تفاح', 'خوخ', 'مشمش'],
+    floral: ['زهور', 'زهري', 'ورد', 'ياسمين', 'لافندر'],
+    sweet: ['حلو', 'حلاوه', 'كراميل', 'فانيليا', 'عسل', 'سكر بني'],
+    'nutty-cocoa': ['شوكولاته', 'شيكولاته', 'كاكاو', 'مكسرات', 'بندق', 'لوز', 'فول سوداني'],
+    spices: ['توابل', 'هيل', 'قرفه', 'قرنفل', 'زنجبيل', 'فلفل'],
+    roasted: ['محمص', 'مدخن', 'دخان', 'دخاني'],
+};
+const NEG_CUES = ['مبحب', 'ما بحب', 'مش بحب', 'بكره', 'اكره', 'مش عاوز', 'مش عايز', 'بلاش', 'تعبني', 'مش بتعجبني', 'مش عجبتني', 'بزهق'];
+const POS_CUES = ['بحب', 'احب', 'عايز', 'عاوز', 'نفسي', 'يعجبني', 'بفضل', 'افضل', 'عجبتني'];
+const _famName = (id) => { const f = FAMILIES.find((x) => x.id === id); return f ? f.name.ar : id; };
+/** Read a free-text opinion: taste tags (as before) + liked/avoided flavour families + caffeine wishes. Returns what to change and Arabic lines saying so. */
+function extractRules(text) {
+    const t = normAr(text), out = { tags: tagsFromText(text), pf: {}, caf: '', lines: [] };
+    const clauses = t.split(/[،,.!؟?\n]+|\sبس\s|\sلكن\s|\s(?=و(?:مبحب|ما بحب|مش|بكره|اكره|بلاش))/).map((x) => x.trim()).filter(Boolean);
+    for (const c of clauses) {
+        const neg = NEG_CUES.some((w) => c.includes(w)), pos = !neg && POS_CUES.some((w) => c.includes(w));
+        if (!neg && !pos) continue;
+        for (const fam of Object.keys(FAM_WORDS)) if (FAM_WORDS[fam].some((w) => c.includes(w))) out.pf[fam] = (out.pf[fam] || 0) + (neg ? -1 : 1);
+    }
+    if (/كافيين\s*(قليل|خفيف|اقل)|من غير كافيين|ديكاف/.test(t)) out.caf = 'gentle';
+    else if (/تصحصحني|تنبهني|كافيين\s*(كتير|عالي|اكتر|قوي)|(كتير|عالي|قوي)\s*كافيين/.test(t)) out.caf = 'kick';
+    for (const k of Object.keys(out.pf)) out.lines.push(out.pf[k] > 0 ? 'هركّز على نكهات ' + _famName(k) : 'هتجنّب نكهات ' + _famName(k));
+    if (out.caf) out.lines.push(out.caf === 'gentle' ? 'هقلّل الكافيين' : 'هزوّد الكافيين');
+    return out;
+}
+function applyRules(prefs, rules) {
+    const p = { ...ZERO_PREFS, ...(prefs || {}) };
+    p.pf = { ...(p.pf || {}) };
+    for (const [k, d] of Object.entries((rules && rules.pf) || {})) p.pf[k] = Math.max(-2, Math.min(2, (p.pf[k] || 0) + d));
+    if (rules && rules.caf) p.caf = rules.caf;
+    return p;
+}
+/** What Hadota currently believes about this user, as Arabic lines (shown in the usage page and passed to the LLM). */
+function ruleLines(prefs) {
+    const p = { ...ZERO_PREFS, ...(prefs || {}) }, out = [];
+    const two = (v, neg, pos) => { if (Math.abs(v) >= 0.5) out.push(v < 0 ? neg : pos); };
+    two(p.pa, 'بتفضّل حموضة أهدى', 'بتفضّل حموضة أعلى'); two(p.pb, 'بتفضّل قوام أخف', 'بتفضّل قوام أتقل');
+    two(p.pr, 'بتفضّل تحميص أفتح', 'بتفضّل تحميص أغمق'); two(p.ps, 'بتفضّل حلاوة أقل', 'بتفضّل حلاوة أكتر');
+    for (const [k, v] of Object.entries(p.pf || {})) if (v) out.push((v > 0 ? 'بتحب نكهات ' : 'بتتجنّب نكهات ') + _famName(k));
+    if (p.caf) out.push(p.caf === 'gentle' ? 'بتفضّل كافيين أقل' : 'بتفضّل كافيين أعلى');
+    return out;
+}
+const OPT_SYN = { hot: ['سخن', 'ساخن', 'حار', 'دافي'], iced: ['ساقع', 'مثلج', 'بارد', 'تلج', 'ايس', 'سقع'], soft: ['هادي', 'ناعم'], bright: ['عالي', 'منعش', 'حامض'], silky: ['خفيف', 'ناعم'], heavy: ['تقيل', 'تخين'], none: ['من غير', 'بلاش', 'ولا حاجه'], any: ['اي حاجه', 'مش فارق', 'اي'], auto: ['اي حاجه', 'مش فارق', 'سيبها عليك'], light: ['فاتح', 'خفيف'], dark: ['غامق'], medium: ['وسط', 'متوسط'], strong: ['قوي', 'تقيل'], gentle: ['قليل', 'خفيف'], kick: ['عالي', 'قوي', 'تصحصحني'], whole: ['كامل'], oat: ['شوفان'], almond: ['لوز'], sada: ['سادة', 'سادا'], mazbout: ['مظبوط'], ziyada: ['زياده'] };
+const _STOP = ['ال', 'و', 'من', 'في', 'على', 'عايز', 'عايزها', 'عاوز', 'نفسي', 'انا', 'لو', 'ممكن', 'بس', 'دي', 'ده', 'يا', 'ايه', 'اختار', 'خلي', 'خليها'];
+const _lev1 = (a, b) => { if (a === b) return true; if (Math.abs(a.length - b.length) > 1 || a.length < 4) return false; let i = 0, j = 0, e = 0; while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; } if (++e > 1) return false; if (a.length > b.length) i++; else if (a.length < b.length) j++; else { i++; j++; } } return e + (a.length - i) + (b.length - j) <= 1; };
+const _tok = (s) => normAr(s).split(' ').map((w) => (w.startsWith('ال') && w.length > 3 ? w.slice(2) : w)).filter((w) => w && !_STOP.includes(w));
+/** Which of these options did the user say? opts = [{id,label}]. Returns [{id,score}] best first (score >= 0.5). */
+function matchOptions(text, opts) {
+    const said = _tok(text), whole = normAr(text), res = [];
+    for (const o of opts) {
+        const words = _tok(o.label || ''), syn = (OPT_SYN[o.id] || []).map(normAr);
+        let sc = words.length ? words.filter((w) => said.some((s) => s === w || (w.length >= 3 && s.length >= 3 && (s.startsWith(w) || w.startsWith(s))) || _lev1(s, w))).length / words.length : 0;
+        if (syn.some((w) => whole.includes(w))) sc = Math.max(sc, 0.9);
+        if (sc >= 0.5) res.push({ id: o.id, score: sc });
+    }
+    return res.sort((a, b) => b.score - a.score);
+}

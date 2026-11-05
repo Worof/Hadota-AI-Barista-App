@@ -9,7 +9,7 @@ const SYS = "أنت حدوتة، باريستا مصري ودود بيتكلم �
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { q, ctx } = await req.json();
+    const { q, ctx, rules } = await req.json();
     const url = Deno.env.get("LLM_URL"), key = Deno.env.get("LLM_KEY"), model = Deno.env.get("LLM_MODEL");
     const question = String(q || "").slice(0, 300);
     if (!url || !key || !model || !question) return json({ text: "" });
@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
       body: JSON.stringify({ model, max_tokens: 220, temperature: 0.5, messages: [
         { role: "system", content: SYS },
-        { role: "user", content: (ctx ? "آخر خلطة: " + String(ctx).slice(0, 200) + "\n" : "") + question },
+        { role: "user", content: (rules ? "تفضيلات العميل المعروفة (احترمها): " + String(rules).slice(0, 500) + "\n" : "") + (ctx ? "آخر خلطة: " + String(ctx).slice(0, 200) + "\n" : "") + question },
       ] }),
     });
     const d = await r.json();
