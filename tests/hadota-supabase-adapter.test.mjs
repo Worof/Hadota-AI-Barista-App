@@ -17,8 +17,17 @@ function fake(fixtures = {}) {
     ops.push(op);
 
     const b = new Proxy({}, {
-      get: (_, k) => {
-        if (k === "single") {
+        get: (_, k) => {
+            // Support Supabase's thenable query builder
+            if (k === "then") {
+                return (resolve, reject) =>
+                    Promise.resolve({
+                        data: fixtures[table] ?? [],
+                        error: fixtures[table + ":error"] ?? null
+                    }).then(resolve, reject);
+            }
+
+            if (k === "single") {
           return () => Promise.resolve({
             data: fixtures[table + ":single"] ?? { id: "created-" + table },
             error: fixtures[table + ":error"] ?? null
