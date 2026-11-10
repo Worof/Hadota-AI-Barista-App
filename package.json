@@ -6,7 +6,7 @@
   "description": "Hadota - Egyptian Arabic AI barista (static PWA + Supabase)",
   "scripts": {
     "start": "python3 -m http.server 8000",
-    "test": "node --test tests/engine.test.mjs tests/learning.test.mjs tests/nlu.test.mjs tests/supabase-adapter.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/learning.test.mjs tests/nlu.test.mjs tests/hadota-supabase-adapter.test.mjs",
     "test:engine": "node --test tests/engine.test.mjs",
     "test:learning": "node --test tests/learning.test.mjs",
     "sim": "node tests/evaluate.mjs 200 30",
