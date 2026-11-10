@@ -10,13 +10,13 @@ if(ok){
  const poll=(fn,cb,ms,onError)=>{let on=true,inFlight=false,lastError="";const run=async()=>{if(!on||inFlight)return;inFlight=true;try{const r=await fn();if(!on)return;lastError="";cb(r)}catch(e){if(on&&onError){const key=String(e&&((e.code||"")+":"+(e.message||""))||e);if(key!==lastError){lastError=key;try{onError(e)}catch(_){}}}}finally{inFlight=false}};run();const t=setInterval(run,ms);return()=>{on=false;clearInterval(t)}};
  const chk=r=>{if(r.error)throw r.error};
  const q=[];let qt=null;const flush=async()=>{if(!q.length||!user)return;const rows=q.splice(0,q.length);try{chk(await c.from("events").insert(rows))}catch(e){}};if(typeof addEventListener==="function")addEventListener("pagehide",flush);
- const TCOLS="id,title,vibe,meet_at,capacity,host,members_n,table_members(user_id,profiles(name)),table_requests(id,user_id,status,profiles(name),table_votes(voter_id,approve))";
+ const TCOLS="id,title,vibe,meet_at,capacity,host,members_n,table_members(user_id,profiles!table_members_user_id_fkey(name)),table_requests(id,user_id,status,profiles!table_requests_user_id_fkey(name),table_votes(voter_id,approve))";
  const tables=async()=>{const{data,error}=await c.from("tables").select(TCOLS).order("created_at",{ascending:false}).limit(50);if(error)throw error;
   return data.map(t=>{const members=(t.table_members||[]).map(m=>({id:m.user_id,name:(m.profiles&&m.profiles.name)||"؟"})),reqs=t.table_requests||[],mine=reqs.find(r=>user&&r.user_id===user.id),isM=user&&members.some(m=>m.id===user.id);
    return{id:t.id,title:t.title,vibe:t.vibe,when:t.meet_at,cap:t.capacity,host:t.host,n:t.members_n,members,myReq:mine?mine.status:null,
     pending:isM?reqs.filter(r=>r.status==="pending").map(r=>({id:r.id,uid:r.user_id,name:(r.profiles&&r.profiles.name)||"؟",votes:Object.fromEntries((r.table_votes||[]).map(v=>[v.voter_id,v.approve]))})):[]}})};
- const msgs=async id=>{const{data,error}=await c.from("messages").select("id,body,created_at,user_id,profiles(name)").eq("table_id",id).order("created_at",{ascending:true}).limit(100);if(error)throw error;return data.map(m=>({id:m.id,text:m.body,at:m.created_at,uid:m.user_id,name:(m.profiles&&m.profiles.name)||"؟"}))};
- const PCOLS="id,author,table_id,body,media_path,media_type,repost_of,like_count,comment_count,repost_count,created_at,profiles(name)";
+ const msgs=async id=>{const{data,error}=await c.from("messages").select("id,body,created_at,user_id,profiles!messages_user_id_fkey(name)").eq("table_id",id).order("created_at",{ascending:true}).limit(100);if(error)throw error;return data.map(m=>({id:m.id,text:m.body,at:m.created_at,uid:m.user_id,name:(m.profiles&&m.profiles.name)||"؟"}))};
+ const PCOLS="id,author,table_id,body,media_path,media_type,repost_of,like_count,comment_count,repost_count,created_at,profiles!posts_author_fkey(name)";
  const sig=new Map();   // signed-url cache so private images do not reload on every poll
  const mediaUrls=async ps=>{const m=new Map(),need=[];for(const p of ps){if(!p.media_path)continue;if(!p.table_id){m.set(p.id,c.storage.from("media").getPublicUrl(p.media_path).data.publicUrl);continue}const h=sig.get(p.media_path);if(h&&h.exp>Date.now())m.set(p.id,h.url);else need.push(p)}
   if(need.length){const{data,error}=await c.storage.from("media-private").createSignedUrls(need.map(p=>p.media_path),3600);if(error)throw error;(data||[]).forEach((d,i)=>{if(d&&d.signedUrl){sig.set(need[i].media_path,{url:d.signedUrl,exp:Date.now()+3000e3});m.set(need[i].id,d.signedUrl)}})}return m};
@@ -26,7 +26,7 @@ if(ok){
   chk(lk);chk(og);const liked=new Set((lk.data||[]).map(x=>x.post_id)),orig=new Map((og.data||[]).map(x=>[x.id,x])),urls=await mediaUrls([...data,...(og.data||[])]);
   const shape=p=>({id:p.id,uid:p.author,name:(p.profiles&&p.profiles.name)||"؟",text:p.body,at:p.created_at,table:p.table_id,mediaType:p.media_type,mediaUrl:urls.get(p.id)||null,likes:p.like_count,comments:p.comment_count,reposts:p.repost_count,liked:liked.has(p.id)});
   return data.map(p=>({...shape(p),repostOf:p.repost_of?(orig.get(p.repost_of)?shape(orig.get(p.repost_of)):{missing:true}):null}))};
- const cmts=async id=>{const{data,error}=await c.from("post_comments").select("id,body,created_at,user_id,profiles(name)").eq("post_id",id).order("created_at",{ascending:true}).limit(100);if(error)throw error;return data.map(m=>({id:m.id,text:m.body,at:m.created_at,uid:m.user_id,name:(m.profiles&&m.profiles.name)||"؟"}))};
+ const cmts=async id=>{const{data,error}=await c.from("post_comments").select("id,body,created_at,user_id,profiles!post_comments_user_id_fkey(name)").eq("post_id",id).order("created_at",{ascending:true}).limit(100);if(error)throw error;return data.map(m=>({id:m.id,text:m.body,at:m.created_at,uid:m.user_id,name:(m.profiles&&m.profiles.name)||"؟"}))};
  SB={kind:"supabase",needsEmail:true,
   async init(){const{data}=await c.auth.getSession();user=data.session?data.session.user:null;return user?{id:user.id,name:nameOf(user)}:null},
   async signUp(email,pw,name){const{data,error}=await c.auth.signUp({email,password:pw,options:{data:{name}}});if(error)throw error;if(!data.session)throw new Error("confirm-email");user=data.user;return{id:user.id,name}},
@@ -36,7 +36,7 @@ if(ok){
   async saveData(d){if(user)chk(await c.from("user_data").upsert({user_id:user.id,data:d,updated_at:new Date().toISOString()}))},
   watchTables:(cb,onError)=>poll(tables,cb,5000,onError),
   watchMessages:(id,cb,onError)=>poll(()=>msgs(id),cb,3500,onError),
-  async create(t){const{data,error}=await c.from("tables").insert({title:t.title,vibe:t.vibe,meet_at:t.when,capacity:t.cap,host:user.id}).select("id").single();if(error)throw error;return data&&data.id||null},
+  async create(t){const{data,error}=await c.from("tables").insert({title:t.title,vibe:t.vibe,meet_at:t.when,capacity:t.cap,host:user.id}).select("id").single();if(error)throw error;if(!data||!data.id)throw new Error("table-create-no-id");return data.id},
   /* joining = a request that every current member must approve (enforced by triggers in 002_social_and_requests.sql) */
   async request(id){chk(await c.from("table_requests").insert({table_id:id,user_id:user.id}))},
   async cancelRequest(id){chk(await c.from("table_requests").delete().eq("table_id",id).eq("user_id",user.id))},
@@ -48,8 +48,8 @@ if(ok){
   async post({text,table,file,kind,repostOf}){let path=null,type=null,bucket=table?"media-private":"media";
    if(file){type=kind;const ext=((file.name||"").split(".").pop()||(kind==="video"?"mp4":"jpg")).replace(/[^a-z0-9]/gi,"").slice(0,5)||"bin",name=Date.now()+"-"+Math.random().toString(36).slice(2,7)+"."+ext;
     path=table?table+"/"+user.id+"/"+name:user.id+"/"+name;const up=await c.storage.from(bucket).upload(path,file,{contentType:file.type||(kind==="video"?"video/mp4":"image/jpeg"),upsert:false});if(up.error)throw up.error}
-   try{const{data,error}=await c.from("posts").insert({body:text||"",table_id:table||null,media_path:path,media_type:type,repost_of:repostOf||null}).select("id").single();if(error)throw error;return data&&data.id||null}
-   catch(e){if(path){try{await c.storage.from(bucket).remove([path])}catch(_){}}throw e}},
+   try{const{data,error}=await c.from("posts").insert({body:text||"",table_id:table||null,media_path:path,media_type:type,repost_of:repostOf||null}).select("id").single();if(error)throw error;if(!data||!data.id)throw new Error("post-create-no-id");return data.id}
+   catch(e){if(path){try{const{error:cleanupError}=await c.storage.from(bucket).remove([path]);if(cleanupError)console.error("Hadota media cleanup failed:",cleanupError)}catch(cleanupError){console.error("Hadota media cleanup failed:",cleanupError)}}throw e}},
   async like(id){chk(await c.from("post_likes").insert({post_id:id,user_id:user.id}))},
   async unlike(id){chk(await c.from("post_likes").delete().eq("post_id",id).eq("user_id",user.id))},
   async comment(id,text){chk(await c.from("post_comments").insert({post_id:id,body:text}))},

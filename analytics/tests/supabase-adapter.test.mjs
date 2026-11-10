@@ -12,14 +12,25 @@ function fake(fixtures = {}) {
   const ops = [];
   const builder = (table) => {
     const op = { table, op: "select", args: [], filters: [] }; ops.push(op);
-      const b = new Proxy({}, {
-          get: (_, k) => {
-              if (k === "single") return () => Promise.resolve({
-                  data: fixtures[table + ":single"] ?? { id: "created-" + table },
-                  error: fixtures[table + ":error"] ?? null
-              });
-
-      return (...a) => { if (["insert", "upsert", "delete", "update"].includes(k)) { op.op = k; op.args = a; } else op.filters.push([k, ...a]); if (k === "maybeSingle") return Promise.resolve({ data: null, error: null }); return b; };
+    const b = new Proxy({}, { get: (_, k) => {
+      if (k === "then") return (res) => res({ data: fixtures[table] ?? [], error: fixtures[table + ":error"] ?? null });
+      if (k === "single") return () => Promise.resolve({
+        data: fixtures[table + ":single"] ?? { id: "created-" + table },
+        error: fixtures[table + ":error"] ?? null
+      });
+      if (k === "maybeSingle") return () => Promise.resolve({
+        data: fixtures[table + ":single"] ?? null,
+        error: fixtures[table + ":error"] ?? null
+      });
+      return (...a) => {
+        if (["insert", "upsert", "delete", "update"].includes(k)) {
+          op.op = k;
+          op.args = a;
+        } else {
+          op.filters.push([k, ...a]);
+        }
+        return b;
+      };
     } });
     return b;
   };
@@ -29,11 +40,24 @@ function fake(fixtures = {}) {
     auth: { getSession: async () => ({ data: { session: { user: { id: "U1", user_metadata: { name: "منى" } } } } }) },
     from: builder, rpc: async (n) => ({ data: [{ word: "هيل", n: "3" }], error: null }),
     functions: { invoke: async (n, o) => ({ data: { text: "رد:" + o.body.rules }, error: null }) },
-    storage: { from: (bucket) => ({
-      upload: async (p, f, o) => { storageCalls.push({ bucket, p, type: o.contentType }); return { error: null }; },
-      getPublicUrl: (p) => ({ data: { publicUrl: "https://x/public/" + bucket + "/" + p } }),
-      createSignedUrls: async (ps) => ({ data: ps.map((p) => ({ signedUrl: "https://x/signed/" + p })) }),
-    }) },
+      storage: {
+          from: (bucket) => ({
+              upload: async (p, f, o) => {
+                  storageCalls.push({ bucket, p, type: o.contentType });
+                  return { error: null };
+              },
+              remove: async (paths) => {
+                  storageCalls.push({ bucket, remove: paths });
+                  return { error: null };
+              },
+              getPublicUrl: (p) => ({
+                  data: { publicUrl: "https://x/public/" + bucket + "/" + p }
+              }),
+              createSignedUrls: async (ps) => ({
+                  data: ps.map((p) => ({ signedUrl: "https://x/signed/" + p }))
+              }),
+          })
+      },
   };
   return client;
 }
@@ -98,4 +122,49 @@ test("telemetry and feedback carry no free text; ask() passes the taste rules bu
 });
 test("every Backend method the app calls exists on all three implementations", () => {
   for (const m of ["request", "cancelRequest", "vote", "leave", "watchFeed", "post", "like", "unlike", "comment", "watchComments", "deletePost", "myActivity"]) assert.ok(src.includes(m), m);
+});
+
+test("creating a table returns the persisted row ID", async () => {
+  const { B, client } = await load();
+  const id = await B.create({ title: "تركي بالهيل", vibe: "قعدة هادية", when: "الجمعة", cap: 4 });
+  assert.equal(id, "created-tables");
+  const op = client.ops.at(-1);
+  assert.equal(op.table, "tables");
+  assert.equal(op.op, "insert");
+  assert.equal(op.args[0].host, "U1");
+});
+
+test("table polling reports schema errors to the UI instead of swallowing them", async () => {
+  const error = { code: "PGRST205", message: "Could not find the table in the schema cache" };
+  const { B } = await load({ "tables:error": error });
+  const received = await new Promise((resolve) => {
+    let stop;
+    stop = B.watchTables(() => {}, (e) => { stop(); resolve(e); });
+  });
+  assert.equal(received.code, "PGRST205");
+});
+
+test("feed polling reports missing feed migrations to the UI", async () => {
+  const error = { code: "PGRST205", message: "Could not find posts in the schema cache" };
+  const { B } = await load({ "posts:error": error });
+  const received = await new Promise((resolve) => {
+    let stop;
+    stop = B.watchFeed({ table: null }, () => {}, (e) => { stop(); resolve(e); });
+  });
+  assert.equal(received.code, "PGRST205");
+});
+
+test("a failed post write removes its uploaded media and rejects the operation", async () => {
+  const error = { code: "42501", message: "permission denied" };
+  const { B, client } = await load({ "posts:error": error });
+    await assert.rejects(
+        B.post({
+            text: "صورة",
+            file: { name: "a.jpg", type: "image/jpeg" },
+            kind: "image"
+        }),
+        (error) =>
+            error?.code === "42501" &&
+            /permission denied/i.test(error?.message ?? "")
+    );  assert.ok(client.storageCalls.some((x) => x.remove && x.bucket === "media"));
 });
