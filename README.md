@@ -10,9 +10,6 @@ Branching questions · expert coffee rules · per-user contextual bandit · comm
 ![PWA](https://img.shields.io/badge/PWA-installable-3f4a2b) ![JS](https://img.shields.io/badge/vanilla-JavaScript-e8b86a) ![Supabase](https://img.shields.io/badge/Supabase-auth%20%2B%20Postgres%20%2B%20RLS-3ecf8e) ![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-000000) ![Tests](https://img.shields.io/badge/tests-49%20%2B%2010%20%2B%2014%20%2B%205%20%2B%2040-b8322a) ![RL](https://img.shields.io/badge/learning-LinUCB%20contextual%20bandit-b8322a)
 
 </div>
-
-> **ملخص بالمصري:** حدوتة باريستا ذكي لمدمني القهوة. بيسألك أسئلة بتتغيّر حسب إجاباتك، وبيطلّعلك خلطة بن وتحميص وطحنة وتحويجة، وكل ما تقيّم أو تكتب رأيك بيتعلم ذوقك أكتر (خوارزمية LinUCB لكل مستخدم). فيه مجتمع «قهوة الحكواتية» بترابيزات وشات، وسيرفر على Supabase، واستضافة على Vercel، ومجموعة اختبارات وتحليل بيانات تثبت إنه بيتعلم فعلاً.
-
 ---
 
 ## Contents
@@ -544,11 +541,7 @@ sequenceDiagram
 
 ## 15. Voice and sound
 
-* **One voice everywhere.** Hadota speaks only with **recorded clips of one male Egyptian voice**. The app never calls the device's `speechSynthesis`, so a phone with a female default voice cannot change who Hadota is. `assets/voice/manifest.json` maps each sentence to a clip; the app plays the sentences of a line in sequence. If a line has no clip, he stays silent and the caption still types.
-* **Rendering the voice (one-time, free):** `node scripts/voice-lines.mjs` lists every sentence he can say (61, name-free); `python scripts/render_voice.py --speaker Mohammed` on a free Colab GPU renders them with VoiceTuT-TTS and writes `assets/voice/`; commit it. The caption shows the user's name; the clips skip it. Chat answers from the LLM are text only.
-* **Café ambience:** a recorded loop decoded with the Web Audio API at low gain, started by the entrance tap (browsers block autoplay).
-* **Silence when you leave:** on `visibilitychange` (tab hidden, app minimised) and `pagehide` the audio context is suspended, the loop paused and clips stopped; it resumes when the app is visible again.
-* **Typing in sync:** the caption types at 68 ms per character and starts with the clip.
+* ** ⚠️STILL UNDER DEVELOPMENT * **
 
 ## 16. PWA and offline
 
