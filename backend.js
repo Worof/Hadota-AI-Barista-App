@@ -1,7 +1,4 @@
-/* Backend adapter. One interface, three implementations:
-   - Supabase (real accounts, member-approved tables, social news feed, media) when config.js has supabaseUrl/supabaseKey
-   - claude.ai artifact database (preview only; privacy rules are enforced in the UI, not by the database)
-   - local-only (no server): accounts live on the device, community is unavailable */
+
 const Backend=(()=>{
 const CFG=window.HADOTA_CONFIG||{};
 const ok=CFG.supabaseUrl&&CFG.supabaseKey&&window.supabase;

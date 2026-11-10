@@ -14,8 +14,23 @@ function fake(fixtures = {}) {
     const op = { table, op: "select", args: [], filters: [] }; ops.push(op);
     const b = new Proxy({}, { get: (_, k) => {
       if (k === "then") return (res) => res({ data: fixtures[table] ?? [], error: fixtures[table + ":error"] ?? null });
-      if (k === "single") return Promise.resolve({ data: fixtures[table + ":single"] ?? { id: "created-" + table }, error: fixtures[table + ":error"] ?? null });
-      return (...a) => { if (["insert", "upsert", "delete", "update"].includes(k)) { op.op = k; op.args = a; } else op.filters.push([k, ...a]); if (k === "maybeSingle") return Promise.resolve({ data: null, error: null }); return b; };
+      if (k === "single") return () => Promise.resolve({
+        data: fixtures[table + ":single"] ?? { id: "created-" + table },
+        error: fixtures[table + ":error"] ?? null
+      });
+      if (k === "maybeSingle") return () => Promise.resolve({
+        data: fixtures[table + ":single"] ?? null,
+        error: fixtures[table + ":error"] ?? null
+      });
+      return (...a) => {
+        if (["insert", "upsert", "delete", "update"].includes(k)) {
+          op.op = k;
+          op.args = a;
+        } else {
+          op.filters.push([k, ...a]);
+        }
+        return b;
+      };
     } });
     return b;
   };
