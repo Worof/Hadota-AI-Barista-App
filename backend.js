@@ -10,7 +10,7 @@ let SB=null;
 if(ok){
  const c=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey);let user=null;
  const nameOf=u=>(u&&u.user_metadata&&u.user_metadata.name)||(u&&u.email?u.email.split("@")[0]:"");
- const poll=(fn,cb,ms)=>{let on=true;const run=async()=>{try{const r=await fn();if(on)cb(r)}catch(e){}};run();const t=setInterval(run,ms);return()=>{on=false;clearInterval(t)}};
+ const poll=(fn,cb,ms,onError)=>{let on=true,inFlight=false,lastError="";const run=async()=>{if(!on||inFlight)return;inFlight=true;try{const r=await fn();if(!on)return;lastError="";cb(r)}catch(e){if(on&&onError){const key=String(e&&((e.code||"")+":"+(e.message||""))||e);if(key!==lastError){lastError=key;try{onError(e)}catch(_){}}}}finally{inFlight=false}};run();const t=setInterval(run,ms);return()=>{on=false;clearInterval(t)}};
  const chk=r=>{if(r.error)throw r.error};
  const q=[];let qt=null;const flush=async()=>{if(!q.length||!user)return;const rows=q.splice(0,q.length);try{chk(await c.from("events").insert(rows))}catch(e){}};if(typeof addEventListener==="function")addEventListener("pagehide",flush);
  const TCOLS="id,title,vibe,meet_at,capacity,host,members_n,table_members(user_id,profiles(name)),table_requests(id,user_id,status,profiles(name),table_votes(voter_id,approve))";
@@ -22,11 +22,11 @@ if(ok){
  const PCOLS="id,author,table_id,body,media_path,media_type,repost_of,like_count,comment_count,repost_count,created_at,profiles(name)";
  const sig=new Map();   // signed-url cache so private images do not reload on every poll
  const mediaUrls=async ps=>{const m=new Map(),need=[];for(const p of ps){if(!p.media_path)continue;if(!p.table_id){m.set(p.id,c.storage.from("media").getPublicUrl(p.media_path).data.publicUrl);continue}const h=sig.get(p.media_path);if(h&&h.exp>Date.now())m.set(p.id,h.url);else need.push(p)}
-  if(need.length){const{data}=await c.storage.from("media-private").createSignedUrls(need.map(p=>p.media_path),3600);(data||[]).forEach((d,i)=>{if(d&&d.signedUrl){sig.set(need[i].media_path,{url:d.signedUrl,exp:Date.now()+3000e3});m.set(need[i].id,d.signedUrl)}})}return m};
+  if(need.length){const{data,error}=await c.storage.from("media-private").createSignedUrls(need.map(p=>p.media_path),3600);if(error)throw error;(data||[]).forEach((d,i)=>{if(d&&d.signedUrl){sig.set(need[i].media_path,{url:d.signedUrl,exp:Date.now()+3000e3});m.set(need[i].id,d.signedUrl)}})}return m};
  const feed=async scope=>{let qb=c.from("posts").select(PCOLS).order("created_at",{ascending:false}).limit(60);qb=scope&&scope.table?qb.eq("table_id",scope.table):qb.is("table_id",null);
   const{data,error}=await qb;if(error)throw error;const ids=data.map(p=>p.id),oids=[...new Set(data.filter(p=>p.repost_of).map(p=>p.repost_of))];
   const[lk,og]=await Promise.all([ids.length?c.from("post_likes").select("post_id").eq("user_id",user.id).in("post_id",ids):{data:[]},oids.length?c.from("posts").select(PCOLS).in("id",oids):{data:[]}]);
-  const liked=new Set((lk.data||[]).map(x=>x.post_id)),orig=new Map((og.data||[]).map(x=>[x.id,x])),urls=await mediaUrls([...data,...(og.data||[])]);
+  chk(lk);chk(og);const liked=new Set((lk.data||[]).map(x=>x.post_id)),orig=new Map((og.data||[]).map(x=>[x.id,x])),urls=await mediaUrls([...data,...(og.data||[])]);
   const shape=p=>({id:p.id,uid:p.author,name:(p.profiles&&p.profiles.name)||"؟",text:p.body,at:p.created_at,table:p.table_id,mediaType:p.media_type,mediaUrl:urls.get(p.id)||null,likes:p.like_count,comments:p.comment_count,reposts:p.repost_count,liked:liked.has(p.id)});
   return data.map(p=>({...shape(p),repostOf:p.repost_of?(orig.get(p.repost_of)?shape(orig.get(p.repost_of)):{missing:true}):null}))};
  const cmts=async id=>{const{data,error}=await c.from("post_comments").select("id,body,created_at,user_id,profiles(name)").eq("post_id",id).order("created_at",{ascending:true}).limit(100);if(error)throw error;return data.map(m=>({id:m.id,text:m.body,at:m.created_at,uid:m.user_id,name:(m.profiles&&m.profiles.name)||"؟"}))};
@@ -37,9 +37,9 @@ if(ok){
   async signOut(){await c.auth.signOut();user=null},
   async loadData(){const{data}=await c.from("user_data").select("data").eq("user_id",user.id).maybeSingle();return data?data.data:null},
   async saveData(d){if(user)chk(await c.from("user_data").upsert({user_id:user.id,data:d,updated_at:new Date().toISOString()}))},
-  watchTables:cb=>poll(tables,cb,5000),
-  watchMessages:(id,cb)=>poll(()=>msgs(id),cb,3500),
-  async create(t){chk(await c.from("tables").insert({title:t.title,vibe:t.vibe,meet_at:t.when,capacity:t.cap,host:user.id}))},
+  watchTables:(cb,onError)=>poll(tables,cb,5000,onError),
+  watchMessages:(id,cb,onError)=>poll(()=>msgs(id),cb,3500,onError),
+  async create(t){const{data,error}=await c.from("tables").insert({title:t.title,vibe:t.vibe,meet_at:t.when,capacity:t.cap,host:user.id}).select("id").single();if(error)throw error;return data&&data.id||null},
   /* joining = a request that every current member must approve (enforced by triggers in 002_social_and_requests.sql) */
   async request(id){chk(await c.from("table_requests").insert({table_id:id,user_id:user.id}))},
   async cancelRequest(id){chk(await c.from("table_requests").delete().eq("table_id",id).eq("user_id",user.id))},
@@ -47,15 +47,16 @@ if(ok){
   async leave(id){chk(await c.from("table_members").delete().eq("table_id",id).eq("user_id",user.id))},
   async remove(id){chk(await c.from("tables").delete().eq("id",id))},
   async say(id,text){chk(await c.from("messages").insert({table_id:id,user_id:user.id,body:text}))},
-  watchFeed:(scope,cb)=>poll(()=>feed(scope),cb,6000),
-  async post({text,table,file,kind,repostOf}){let path=null,type=null;
+  watchFeed:(scope,cb,onError)=>poll(()=>feed(scope),cb,6000,onError),
+  async post({text,table,file,kind,repostOf}){let path=null,type=null,bucket=table?"media-private":"media";
    if(file){type=kind;const ext=((file.name||"").split(".").pop()||(kind==="video"?"mp4":"jpg")).replace(/[^a-z0-9]/gi,"").slice(0,5)||"bin",name=Date.now()+"-"+Math.random().toString(36).slice(2,7)+"."+ext;
-    path=table?table+"/"+user.id+"/"+name:user.id+"/"+name;const up=await c.storage.from(table?"media-private":"media").upload(path,file,{contentType:file.type||(kind==="video"?"video/mp4":"image/jpeg"),upsert:false});if(up.error)throw up.error}
-   chk(await c.from("posts").insert({body:text||"",table_id:table||null,media_path:path,media_type:type,repost_of:repostOf||null}))},
+    path=table?table+"/"+user.id+"/"+name:user.id+"/"+name;const up=await c.storage.from(bucket).upload(path,file,{contentType:file.type||(kind==="video"?"video/mp4":"image/jpeg"),upsert:false});if(up.error)throw up.error}
+   try{const{data,error}=await c.from("posts").insert({body:text||"",table_id:table||null,media_path:path,media_type:type,repost_of:repostOf||null}).select("id").single();if(error)throw error;return data&&data.id||null}
+   catch(e){if(path){try{await c.storage.from(bucket).remove([path])}catch(_){}}throw e}},
   async like(id){chk(await c.from("post_likes").insert({post_id:id,user_id:user.id}))},
   async unlike(id){chk(await c.from("post_likes").delete().eq("post_id",id).eq("user_id",user.id))},
   async comment(id,text){chk(await c.from("post_comments").insert({post_id:id,body:text}))},
-  watchComments:(id,cb)=>poll(()=>cmts(id),cb,5000),
+  watchComments:(id,cb,onError)=>poll(()=>cmts(id),cb,5000,onError),
   async deletePost(id){chk(await c.from("posts").delete().eq("id",id))},
   async myActivity(){const[p,cm]=await Promise.all([c.from("posts").select("id,body,created_at,table_id").eq("author",user.id).order("created_at",{ascending:false}).limit(20),c.from("post_comments").select("post_id,body,created_at").eq("user_id",user.id).order("created_at",{ascending:false}).limit(20)]);
    return{posts:(p.data||[]).map(x=>({id:x.id,text:x.body,at:x.created_at,table:x.table_id})),comments:(cm.data||[]).map(x=>({postId:x.post_id,text:x.body,at:x.created_at}))}},
@@ -70,7 +71,7 @@ if(ok){
 let db=null,uid=null,acct=null,rawT=[],rawF=[],tOn=false,fOn=false;
 const ready=(async()=>{try{if(!window.claude)return;const u=await claude.use("user");uid=u&&u.id?await u.id():null;db=await claude.use("db")}catch(e){}})();
 const need=()=>{if(!db||!uid)throw new Error("no-preview-db")};
-const watch=(path,order,cb)=>{let un=()=>{},dead=false;ready.then(()=>{if(!db||dead)return;try{un=db.collection(path).orderBy(order[0],order[1]).limit(100).onSnapshot(s=>cb(s.docs.map(d=>d.data())),()=>{})}catch(e){}});return()=>{dead=true;try{un()}catch(e){}}};
+const watch=(path,order,cb,onError)=>{let un=()=>{},dead=false;ready.then(()=>{if(!db||dead){if(!db&&!dead&&onError)onError(new Error("no-preview-db"));return}try{un=db.collection(path).orderBy(order[0],order[1]).limit(100).onSnapshot(s=>{if(!dead)cb(s.docs.map(d=>d.data()))},e=>{if(!dead&&onError)onError(e)})}catch(e){if(!dead&&onError)onError(e)}});return()=>{dead=true;try{un()}catch(e){}}};
 const keep=()=>{ready.then(()=>{if(!db)return;if(!tOn){tOn=true;try{db.collection("tables").orderBy("at","desc").limit(100).onSnapshot(s=>{rawT=s.docs.map(d=>d.data())},()=>{})}catch(e){}}if(!fOn){fOn=true;try{db.collection("feed").orderBy("at","desc").limit(150).onSnapshot(s=>{rawF=s.docs.map(d=>d.data())},()=>{})}catch(e){}}})};
 const myTables=()=>new Set(rawT.filter(t=>t.members.some(m=>m.id===uid)).map(t=>t.id));
 const mapTable=t=>{const isM=t.members.some(m=>m.id===uid),reqs=t.requests||{},my=reqs[uid];return{id:t.id,title:t.title,vibe:t.vibe,when:t.when,cap:t.cap,host:t.host,n:t.members.length,members:isM?t.members:[],myReq:my?my.status:null,
@@ -83,9 +84,9 @@ const PV={kind:"preview",needsEmail:false,
  async signIn(){const a=await this.init();if(!a)throw new Error("no-account");return a},
  async signOut(){acct=null},
  async loadData(){return null},async saveData(){},
- watchTables:cb=>{keep();return watch("tables",["at","desc"],d=>cb(d.map(mapTable)))},
- watchMessages:(id,cb)=>watch("tables/"+id+"/msgs",["at","asc"],cb),
- async create(t){need();const id="t"+gid();await db.doc("tables/"+id).set({id,title:t.title,vibe:t.vibe,when:t.when,cap:t.cap,host:uid,at:Date.now(),members:[{id:uid,name:acct.name}],requests:{}})},
+ watchTables:(cb,onError)=>{keep();return watch("tables",["at","desc"],d=>cb(d.map(mapTable)),onError)},
+ watchMessages:(id,cb,onError)=>watch("tables/"+id+"/msgs",["at","asc"],cb,onError),
+ async create(t){need();const id="t"+gid();await db.doc("tables/"+id).set({id,title:t.title,vibe:t.vibe,when:t.when,cap:t.cap,host:uid,at:Date.now(),members:[{id:uid,name:acct.name}],requests:{}});return id},
  async request(id){need();const r=db.doc("tables/"+id),t=(await r.get()).data();if(t.members.some(m=>m.id===uid))return;t.requests=t.requests||{};t.requests[uid]={name:acct.name,votes:{},status:"pending",at:Date.now()};await r.set(t)},
  async cancelRequest(id){need();const r=db.doc("tables/"+id),t=(await r.get()).data();if(t.requests)delete t.requests[uid];await r.set(t)},
  async vote(tid,req,approve){need();const r=db.doc("tables/"+tid),t=(await r.get()).data(),q=(t.requests||{})[req.uid];if(!q||q.status!=="pending")return;if(!t.members.some(m=>m.id===uid))throw new Error("not-member");q.votes[uid]=approve;
@@ -93,14 +94,14 @@ const PV={kind:"preview",needsEmail:false,
  async leave(id){need();const r=db.doc("tables/"+id),t=(await r.get()).data();t.members=t.members.filter(m=>m.id!==uid);if(t.requests)delete t.requests[uid];await r.set(t)},
  async remove(id){need();await db.doc("tables/"+id).delete()},
  async say(id,text){need();const m="m"+gid();await db.doc("tables/"+id+"/msgs/"+m).set({id:m,text,uid,name:acct.name,at:Date.now()})},
- watchFeed:(scope,cb)=>{keep();return watch("feed",["at","desc"],d=>{const mt=myTables();rawF=d;const vis=d.filter(p=>scope&&scope.table?p.table===scope.table&&mt.has(p.table):!p.table);
-  cb(vis.map(p=>({...shapeP(p,d),repostOf:p.repostOf?(()=>{const o=d.find(x=>x.id===p.repostOf);return o?shapeP(o,d):{missing:true}})():null})))})},
+ watchFeed:(scope,cb,onError)=>{keep();return watch("feed",["at","desc"],d=>{const mt=myTables();rawF=d;const vis=d.filter(p=>scope&&scope.table?p.table===scope.table&&mt.has(p.table):!p.table);
+  cb(vis.map(p=>({...shapeP(p,d),repostOf:p.repostOf?(()=>{const o=d.find(x=>x.id===p.repostOf);return o?shapeP(o,d):{missing:true}})():null})))},onError)},
  async post({text,table,file,kind,repostOf}){need();let media=null;if(file){if(kind==="video")throw new Error("video-unsupported");if(file.size>260*1024)throw new Error("media-too-big");media={type:"image",dataUrl:await blobToUrl(file)}}
-  const id="p"+gid();await db.doc("feed/"+id).set({id,uid,name:acct.name,text:text||"",at:Date.now(),table:table||null,media,repostOf:repostOf||null,likes:{},commentCount:0})},
+  const id="p"+gid();await db.doc("feed/"+id).set({id,uid,name:acct.name,text:text||"",at:Date.now(),table:table||null,media,repostOf:repostOf||null,likes:{},commentCount:0});return id},
  async like(id){need();const r=db.doc("feed/"+id),p=(await r.get()).data();p.likes=p.likes||{};p.likes[uid]=true;await r.set(p)},
  async unlike(id){need();const r=db.doc("feed/"+id),p=(await r.get()).data();if(p.likes)delete p.likes[uid];await r.set(p)},
  async comment(id,text){need();const cid="c"+gid();await db.doc("feed/"+id+"/comments/"+cid).set({id:cid,uid,name:acct.name,text,at:Date.now()});const r=db.doc("feed/"+id),p=(await r.get()).data();p.commentCount=(p.commentCount||0)+1;await r.set(p)},
- watchComments:(id,cb)=>watch("feed/"+id+"/comments",["at","asc"],cb),
+ watchComments:(id,cb,onError)=>watch("feed/"+id+"/comments",["at","asc"],cb,onError),
  async deletePost(id){need();await db.doc("feed/"+id).delete()},
  async myActivity(){return{posts:rawF.filter(p=>p.uid===uid).slice(0,20).map(p=>({id:p.id,text:p.text,at:p.at,table:p.table})),comments:[]}}};
 /* ---- local mode: no server at all (running from your own computer without Supabase) ---- */

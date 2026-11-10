@@ -109,6 +109,7 @@ try:
         tab(A_, "#community"); A_.click("[data-a=ctab][data-t=tables]"); A_.wait_for_timeout(200)
         A_.fill("#tt", "تركي بالهيل"); A_.select_option("#tc", "4"); A_.click("[data-a=mk]"); A_.wait_for_timeout(500)
         tid = A_.evaluate("TB[0].id")
+        chk("creating a table opens the created table immediately", A_.evaluate("location.hash") == f"#table/{tid}" and "تركي بالهيل" in A_.inner_text("#view"))
         for q in (B_, C_, D_): tab(q, "#community"); q.click("[data-a=ctab][data-t=tables]"); q.wait_for_timeout(500)
         chk("an outsider sees the table but not its members", "🔒" in B_.inner_text("#tl") and B_.evaluate("TB[0].members.length")==0 and "أحمد" not in B_.inner_text("#tl"))
         tab(B_, f"#table/{tid}"); chk("an outsider cannot open the chat or the table feed", "للأعضاء بس" in B_.inner_text("#view") and B_.query_selector("#msgs") is None)
@@ -146,8 +147,13 @@ try:
         B_.fill("#pt", "سر الترابيزة"); B_.click("[data-a=ppost]"); B_.wait_for_timeout(700)
         tab(A_, f"#table/{tid}"); A_.click("[data-a=ttab][data-t=feed]"); A_.wait_for_timeout(600)
         chk("table feed is visible to members", "سر الترابيزة" in A_.inner_text("#fd"))
+        # A table-selected post from the community composer should open that table feed.
+        tab(A_, "#community"); A_.click("[data-a=ctab][data-t=feed]"); A_.wait_for_timeout(400)
+        A_.select_option("#pa", tid); A_.fill("#pt", "منشور من صفحة المجتمع للترابيزة")
+        A_.click("[data-a=ppost]"); A_.wait_for_timeout(700)
+        chk("a table-targeted community post opens the correct private feed", A_.evaluate("location.hash") == f"#table/{tid}" and "منشور من صفحة المجتمع للترابيزة" in A_.inner_text("#fd"))
         tab(D_, "#community"); D_.click("[data-a=ctab][data-t=feed]"); D_.wait_for_timeout(600)
-        chk("table posts do NOT show in the public feed (آخر الأخبار)", "سر الترابيزة" not in D_.inner_text("#fd"))
+        chk("private table posts do NOT show in the public feed (آخر الأخبار)", "سر الترابيزة" not in D_.inner_text("#fd") and "منشور من صفحة المجتمع للترابيزة" not in D_.inner_text("#fd"))
         tab(A_, "#usage"); A_.wait_for_timeout(600); chk("usage shows my community activity", "نشاطك في المجتمع" in A_.inner_text("#view") and "أول منشور" in A_.inner_text("#act"))
         # ---------- every route opens without errors, signed in or not ----------
         for who in ("guest", "user"):
